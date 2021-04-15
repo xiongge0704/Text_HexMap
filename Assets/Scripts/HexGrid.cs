@@ -1,6 +1,9 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// 网格地图排序
+/// </summary>
 public class HexGrid : MonoBehaviour {
 
 	public int width = 6;
@@ -22,6 +25,7 @@ public class HexGrid : MonoBehaviour {
 
 		cells = new HexCell[height * width];
 
+        //按顺序创建六边行
 		for (int z = 0, i = 0; z < height; z++) {
 			for (int x = 0; x < width; x++) {
 				CreateCell(x, z, i++);
@@ -30,6 +34,7 @@ public class HexGrid : MonoBehaviour {
 	}
 
 	void Start () {
+        ///创建六边形三角面
 		hexMesh.Triangulate(cells);
 	}
 
@@ -55,21 +60,28 @@ public class HexGrid : MonoBehaviour {
 		cell.transform.localPosition = position;
 		cell.coordinates = HexCoordinates.FromOffsetCoordinates(x, z);
 		cell.color = defaultColor;
+        cell.name = x.ToString() + "," + z.ToString();
 
 		if (x > 0) {
+            //水平顺序，位置大于1的设置西边邻居为前一位六边形
 			cell.SetNeighbor(HexDirection.W, cells[i - 1]);
 		}
 		if (z > 0) {
+            //垂直顺序，位置大于1的位置
 			if ((z & 1) == 0) {
+                //垂直顺序，偶数位置的，设置东南邻居为前一行长度的六边形
 				cell.SetNeighbor(HexDirection.SE, cells[i - width]);
 				if (x > 0) {
+                    //同时，水平位置大于1的设置西南邻居为前一行长度再加一个单位长度的六边形
 					cell.SetNeighbor(HexDirection.SW, cells[i - width - 1]);
 				}
 			}
 			else {
-				cell.SetNeighbor(HexDirection.SW, cells[i - width]);
+                //垂直顺序，奇数位置的，设置西南邻居为前一行长度的六边形
+                cell.SetNeighbor(HexDirection.SW, cells[i - width]);
 				if (x < width - 1) {
-					cell.SetNeighbor(HexDirection.SE, cells[i - width + 1]);
+                    //同时，水平位置大于1的设置东南邻居为前一行长度再减一个单位长度的六边形
+                    cell.SetNeighbor(HexDirection.SE, cells[i - width + 1]);
 				}
 			}
 		}

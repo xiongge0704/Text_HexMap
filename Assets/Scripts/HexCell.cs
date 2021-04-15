@@ -29,6 +29,11 @@ public class HexCell : MonoBehaviour {
 	[SerializeField]
 	HexCell[] neighbors;
 
+    /// <summary>
+    /// 通过邻居索引值获得对应邻居的对象
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <returns></returns>
 	public HexCell GetNeighbor (HexDirection direction) {
 		return neighbors[(int)direction];
 	}
@@ -38,6 +43,11 @@ public class HexCell : MonoBehaviour {
 		cell.neighbors[(int)direction.Opposite()] = this;
 	}
 
+    /// <summary>
+    /// 获得与指定邻居的高度差枚举
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <returns></returns>
 	public HexEdgeType GetEdgeType (HexDirection direction) {
 		return HexMetrics.GetEdgeType(
 			elevation, neighbors[(int)direction].elevation
