@@ -42,13 +42,19 @@ public class HexGrid : MonoBehaviour {
 		position = transform.InverseTransformPoint(position);
 		HexCoordinates coordinates = HexCoordinates.FromPosition(position);
 		int index = coordinates.X + coordinates.Z * width + coordinates.Z / 2;
-		return cells[index];
+		return cells[index]; 
 	}
 
 	public void Refresh () {
 		hexMesh.Triangulate(cells);
 	}
 
+    /// <summary>
+    /// 创建六边形细胞
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="z"></param>
+    /// <param name="i"></param>
 	void CreateCell (int x, int z, int i) {
 		Vector3 position;
 		position.x = (x + z * 0.5f - z / 2) * (HexMetrics.innerRadius * 2f);
