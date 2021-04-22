@@ -19,7 +19,12 @@ public class HexGrid : MonoBehaviour {
 	Canvas gridCanvas;
 	HexMesh hexMesh;
 
+    public Texture2D noiseSource;
+
 	void Awake () {
+
+        HexMetrics.noiseSource = noiseSource;
+
 		gridCanvas = GetComponentInChildren<Canvas>();
 		hexMesh = GetComponentInChildren<HexMesh>();
 
@@ -33,6 +38,10 @@ public class HexGrid : MonoBehaviour {
 		}
 	}
 
+    private void OnEnable() {
+        HexMetrics.noiseSource = noiseSource;
+    }
+
 	void Start () {
         ///创建六边形三角面
 		hexMesh.Triangulate(cells);
@@ -42,7 +51,7 @@ public class HexGrid : MonoBehaviour {
 		position = transform.InverseTransformPoint(position);
 		HexCoordinates coordinates = HexCoordinates.FromPosition(position);
 		int index = coordinates.X + coordinates.Z * width + coordinates.Z / 2;
-		return cells[index]; 
+		return cells[index];
 	}
 
 	public void Refresh () {

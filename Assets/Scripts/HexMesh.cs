@@ -131,7 +131,7 @@ public class HexMesh : MonoBehaviour {
             //通过下一邻居得到的桥向量，与v2点计算得到角落三角面的最后一个顶点
 			Vector3 v5 = v2 + HexMetrics.GetBridge(direction.Next());
 			v5.y = nextNeighbor.Elevation * HexMetrics.elevationStep;
-            
+
             //找到最低点，顺时针排序，即当前-邻居-下一顺位邻居
             //当前六边形比邻居低
 			if (cell.Elevation <= neighbor.Elevation) {
@@ -232,7 +232,7 @@ public class HexMesh : MonoBehaviour {
 	}
 
     /// <summary>
-    /// 将于邻居间的桥制作成楼梯型的坡    
+    /// 将于邻居间的桥制作成楼梯型的坡
     /// </summary>
     /// <param name="beginLeft"></param>
     /// <param name="beginRight"></param>
@@ -389,6 +389,7 @@ public class HexMesh : MonoBehaviour {
 		}
 	}
 
+//合围的角落三角面化
 	void TriangulateBoundaryTriangle (
 		Vector3 begin, HexCell beginCell,
 		Vector3 left, HexCell leftCell,
@@ -462,4 +463,13 @@ public class HexMesh : MonoBehaviour {
 		colors.Add(c3);
 		colors.Add(c4);
 	}
+
+    Vector3 Perturb(Vector3 position)
+    {
+        Vector4 sample = HexMetrics.SampleNoise(position);
+        position.x += sample.x;
+        position.y += sample.y;
+        position.z += sample.z;
+        return position;
+    }
 }
