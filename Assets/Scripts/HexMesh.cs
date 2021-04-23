@@ -69,33 +69,48 @@ public class HexMesh : MonoBehaviour {
     /// <param name="direction"></param>
     /// <param name="cell"></param>
 	void Triangulate (HexDirection direction, HexCell cell) {
-		Vector3 center = cell.transform.localPosition;
-        //通过第一个邻居索引，得到三角形其中一个顶点位置
-		Vector3 v1 = center + HexMetrics.GetFirstSolidCorner(direction);
-        //通过第二个邻居索引，得到三角形其中一个顶点位置
-		Vector3 v2 = center + HexMetrics.GetSecondSolidCorner(direction);
+        //得到扰动后的坐标
+		Vector3 center = cell.Position;//cell.transform.localPosition;
 
-        //添加六边形的三角面数据，用于统一创建三角面
-		AddTriangle(center, v1, v2);
-		AddTriangleColor(cell.color);
+        #region 原始的六边形构建方式
+        // //通过第一个邻居索引，得到三角形其中一个顶点位置
+		// Vector3 v1 = center + HexMetrics.GetFirstSolidCorner(direction);
+        // //通过第二个邻居索引，得到三角形其中一个顶点位置
+		// Vector3 v2 = center + HexMetrics.GetSecondSolidCorner(direction);
+
+        // //通过六边形两相邻的顶点中间加点，实现六边形有更多的三角面，能够实现更多的变化
+        // Vector3 e1 = Vector3.Lerp(v1,v2,1f / 3f);
+        // Vector3 e2 = Vector3.Lerp(v1,v2,2f / 3f);
+
+        // //添加六边形的三角面数据，用于统一创建三角面
+		// AddTriangle(center, v1, e1);
+		// AddTriangleColor(cell.color);
+
+        // //新增加的六边形三角面
+        // AddTriangle(center,e1,e2);
+        // AddTriangleColor(cell.color);
+        // AddTriangle(center,e2,v2);
+        // AddTriangleColor(cell.color);
+        #endregion
+
+        #region HexMap4中新的六边形构建方式
+        EdgeVertices e = new EdgeVertices(center + HexMetrics.GetFirstSolidCorner(direction),center + HexMetrics.GetSecondSolidCorner(direction));
+        TriangulateEdgeFan(center,e,cell.color);
+        #endregion
 
         ///固定东北方向为初始方向，按顺时针顺序，选取前三个邻居关联,创建连接处所需的三角面
 		if (direction <= HexDirection.SE) {
-			TriangulateConnection(direction, cell, v1, v2);
+			TriangulateConnection(direction, cell,e);
 		}
 	}
 
     /// <summary>
     /// 六边形连接处的面片
-    /// 连接处为矩形面片，定义为桥
+    /// 连接处为矩形面片，定义为桥 - HexMap3
+    /// 修改参数，传入六边形的结构体 - HexMap4
     /// </summary>
-    /// <param name="direction"></param>
-    /// <param name="cell"></param>
-    /// <param name="v1"></param>
-    /// <param name="v2"></param>
-	void TriangulateConnection (
-		HexDirection direction, HexCell cell, Vector3 v1, Vector3 v2
-	) {
+	void TriangulateConnection (HexDirection direction, HexCell cell, EdgeVertices e1)
+    {
 		HexCell neighbor = cell.GetNeighbor(direction);
 		if (neighbor == null) {
 			return;
@@ -103,22 +118,41 @@ public class HexMesh : MonoBehaviour {
 
         //得到桥向量，为当前邻居方向
 		Vector3 bridge = HexMetrics.GetBridge(direction);
-        //六边形的当前邻居边的两顶点加上桥向量，得到对应矩形桥的四个顶点
-		Vector3 v3 = v1 + bridge;
-		Vector3 v4 = v2 + bridge;
 
-        //设置高度
-		v3.y = v4.y = neighbor.Elevation * HexMetrics.elevationStep;
+        #region 新方法，通过结构体计算
+        bridge.y = neighbor.Position.y - cell.Position.y;
+        EdgeVertices e2 = new EdgeVertices(e1.v1 + bridge,e1.v4 + bridge);
+        #endregion
+
+        #region 原始方法
+        // //六边形的当前邻居边的两顶点加上桥向量，得到对应矩形桥的四个顶点
+		// Vector3 v3 = v1 + bridge;
+		// Vector3 v4 = v2 + bridge;
+
+        // //设置高度,替换成扰动后的
+		// v3.y = v4.y = neighbor.Position.y;//neighbor.Elevation * HexMetrics.elevationStep;
+
+        // //新增顶点后，对应的邻居之间的桥也要有对应的顶点做关联
+        // Vector3 e3 = Vector3.Lerp(v3,v4,1f / 3f);
+        // Vector3 e4 = Vector3.Lerp(v3,v4,2f / 3f);
+        #endregion
 
         //与邻居间的桥--------
 		if (cell.GetEdgeType(direction) == HexEdgeType.Slope) {
             //与邻居的高度差为坡，作为楼梯型的样子
-			TriangulateEdgeTerraces(v1, v2, cell, v3, v4, neighbor);
+			TriangulateEdgeTerraces(e1, cell, e2, neighbor);
 		}
 		else {
             //于邻居间的桥做成斜的平面
-			AddQuad(v1, v2, v3, v4);
-			AddQuadColor(cell.color, neighbor.color);
+            //新增顶点后也要增加对应的关联桥
+			// AddQuad(v1, e1, v3, e3);
+            // AddQuadColor(cell.color,neighbor.color);
+            // AddQuad(e1,e2,e3,e4);
+            // AddQuadColor(cell.color,neighbor.color);
+            // AddQuad(e2,v2,e4,v4);
+			// AddQuadColor(cell.color, neighbor.color);
+
+            TriangulateEdgeStrip(e1,cell.color,e2,neighbor.color);
 		}
         //-----------------
 
@@ -129,8 +163,9 @@ public class HexMesh : MonoBehaviour {
         //选取前两东邻居索引前的邻居围成角落
 		if (direction <= HexDirection.E && nextNeighbor != null) {
             //通过下一邻居得到的桥向量，与v2点计算得到角落三角面的最后一个顶点
-			Vector3 v5 = v2 + HexMetrics.GetBridge(direction.Next());
-			v5.y = nextNeighbor.Elevation * HexMetrics.elevationStep;
+			Vector3 v5 = e1.v4 + HexMetrics.GetBridge(direction.Next());
+            //替换成扰动后的高度
+			v5.y = nextNeighbor.Position.y;//nextNeighbor.Elevation * HexMetrics.elevationStep;
 
             //找到最低点，顺时针排序，即当前-邻居-下一顺位邻居
             //当前六边形比邻居低
@@ -138,23 +173,23 @@ public class HexMesh : MonoBehaviour {
                 //当前比下一顺位的邻居低，即当前最低
 				if (cell.Elevation <= nextNeighbor.Elevation) {
                     //角落三角形，当前顶点为底部，邻居为左边顶点，下一顺位邻居为右边顶点
-					TriangulateCorner(v2, cell, v4, neighbor, v5, nextNeighbor);
+					TriangulateCorner(e1.v4, cell, e2.v4, neighbor, v5, nextNeighbor);
 				}
                 //当前比下一顺位的邻居高，即下一顺位最低
 				else {
                     //角落三角形，下一顺位邻居为底部顶点，当前为左边顶点，邻居为右边顶点
-					TriangulateCorner(v5, nextNeighbor, v2, cell, v4, neighbor);
+					TriangulateCorner(v5, nextNeighbor, e1.v4, cell, e2.v4, neighbor);
 				}
 			}
             //当前最高，邻居小于等于下一顺位邻居高度，即邻居为最矮
 			else if (neighbor.Elevation <= nextNeighbor.Elevation) {
                 //角落三角形，邻居为底部顶点，下一顺位邻居为左顶点，当前为右顶点
-				TriangulateCorner(v4, neighbor, v5, nextNeighbor, v2, cell);
+				TriangulateCorner(e2.v4, neighbor, v5, nextNeighbor, e1.v4, cell);
 			}
             //当前最高，邻居大于下一顺位邻居高度，即下一顺位邻居为最矮
 			else {
                 //下一顺位
-				TriangulateCorner(v5, nextNeighbor, v2, cell, v4, neighbor);
+				TriangulateCorner(v5, nextNeighbor, e1.v4, cell, e2.v4, neighbor);
 			}
 		}
         //------------------------------------------------------
@@ -233,37 +268,52 @@ public class HexMesh : MonoBehaviour {
 
     /// <summary>
     /// 将于邻居间的桥制作成楼梯型的坡
+    /// 修改参数，改用顶点结构作为入参 -HexMap4
     /// </summary>
-    /// <param name="beginLeft"></param>
-    /// <param name="beginRight"></param>
-    /// <param name="beginCell"></param>
-    /// <param name="endLeft"></param>
-    /// <param name="endRight"></param>
-    /// <param name="endCell"></param>
 	void TriangulateEdgeTerraces (
-		Vector3 beginLeft, Vector3 beginRight, HexCell beginCell,
-		Vector3 endLeft, Vector3 endRight, HexCell endCell
+		EdgeVertices begin, HexCell beginCell,
+		EdgeVertices end, HexCell endCell
 	) {
-		Vector3 v3 = HexMetrics.TerraceLerp(beginLeft, endLeft, 1);
-		Vector3 v4 = HexMetrics.TerraceLerp(beginRight, endRight, 1);
-		Color c2 = HexMetrics.TerraceLerp(beginCell.color, endCell.color, 1);
+        #region 原始方法
+		// Vector3 v3 = HexMetrics.TerraceLerp(beginLeft, endLeft, 1);
+		// Vector3 v4 = HexMetrics.TerraceLerp(beginRight, endRight, 1);
+		// Color c2 = HexMetrics.TerraceLerp(beginCell.color, endCell.color, 1);
 
-		AddQuad(beginLeft, beginRight, v3, v4);
-		AddQuadColor(beginCell.color, c2);
+		// AddQuad(beginLeft, beginRight, v3, v4);
+		// AddQuadColor(beginCell.color, c2);
 
-		for (int i = 2; i < HexMetrics.terraceSteps; i++) {
-			Vector3 v1 = v3;
-			Vector3 v2 = v4;
-			Color c1 = c2;
-			v3 = HexMetrics.TerraceLerp(beginLeft, endLeft, i);
-			v4 = HexMetrics.TerraceLerp(beginRight, endRight, i);
-			c2 = HexMetrics.TerraceLerp(beginCell.color, endCell.color, i);
-			AddQuad(v1, v2, v3, v4);
-			AddQuadColor(c1, c2);
-		}
+		// for (int i = 2; i < HexMetrics.terraceSteps; i++) {
+		// 	Vector3 v1 = v3;
+		// 	Vector3 v2 = v4;
+		// 	Color c1 = c2;
+		// 	v3 = HexMetrics.TerraceLerp(beginLeft, endLeft, i);
+		// 	v4 = HexMetrics.TerraceLerp(beginRight, endRight, i);
+		// 	c2 = HexMetrics.TerraceLerp(beginCell.color, endCell.color, i);
+		// 	AddQuad(v1, v2, v3, v4);
+		// 	AddQuadColor(c1, c2);
+		// }
 
-		AddQuad(v3, v4, endLeft, endRight);
-		AddQuadColor(c2, endCell.color);
+		// AddQuad(v3, v4, endLeft, endRight);
+		// AddQuadColor(c2, endCell.color);
+        #endregion
+
+        #region 新方式
+            EdgeVertices e2 = EdgeVertices.TerraceLerp(begin,end,1);
+            Color c2 = HexMetrics.TerraceLerp(beginCell.color,endCell.color,1);
+
+            TriangulateEdgeStrip(begin,beginCell.color,e2,c2);
+
+            for(int i = 2;i<HexMetrics.terraceSteps;i++)
+            {
+                EdgeVertices e1 = e2;
+                Color c1 = c2;
+                e2 = EdgeVertices.TerraceLerp(begin,end,i);
+                c2 = HexMetrics.TerraceLerp(beginCell.color,endCell.color,i);
+                TriangulateEdgeStrip(e1,c1,e2,c2);
+            }
+
+            TriangulateEdgeStrip(e2,c2,end,endCell.color);
+        #endregion
 	}
 
     /// <summary>
@@ -334,7 +384,7 @@ public class HexMesh : MonoBehaviour {
 		if (b < 0) {
 			b = -b;
 		}
-		Vector3 boundary = Vector3.Lerp(begin, right, b);
+		Vector3 boundary = Vector3.Lerp(Perturb(begin), Perturb(right), b);
 		Color boundaryColor = Color.Lerp(beginCell.color, rightCell.color, b);
 
 		TriangulateBoundaryTriangle(
@@ -347,7 +397,7 @@ public class HexMesh : MonoBehaviour {
 			);
 		}
 		else {
-			AddTriangle(left, right, boundary);
+			AddTriangleUnperturbed(Perturb(left),Perturb(right), boundary);
 			AddTriangleColor(leftCell.color, rightCell.color, boundaryColor);
 		}
 	}
@@ -371,7 +421,7 @@ public class HexMesh : MonoBehaviour {
 		if (b < 0) {
 			b = -b;
 		}
-		Vector3 boundary = Vector3.Lerp(begin, left, b);
+		Vector3 boundary = Vector3.Lerp(Perturb(begin),Perturb(left), b);
 		Color boundaryColor = Color.Lerp(beginCell.color, leftCell.color, b);
 
 		TriangulateBoundaryTriangle(
@@ -384,7 +434,7 @@ public class HexMesh : MonoBehaviour {
 			);
 		}
 		else {
-			AddTriangle(left, right, boundary);
+			AddTriangleUnperturbed(Perturb(left),Perturb(right), boundary);
 			AddTriangleColor(leftCell.color, rightCell.color, boundaryColor);
 		}
 	}
@@ -395,30 +445,34 @@ public class HexMesh : MonoBehaviour {
 		Vector3 left, HexCell leftCell,
 		Vector3 boundary, Color boundaryColor
 	) {
-		Vector3 v2 = HexMetrics.TerraceLerp(begin, left, 1);
+		Vector3 v2 = Perturb(HexMetrics.TerraceLerp(begin, left, 1));
 		Color c2 = HexMetrics.TerraceLerp(beginCell.color, leftCell.color, 1);
 
-		AddTriangle(begin, v2, boundary);
+		// AddTriangle(begin, v2, boundary);
+        AddTriangleUnperturbed(Perturb(begin),v2,boundary);
 		AddTriangleColor(beginCell.color, c2, boundaryColor);
 
 		for (int i = 2; i < HexMetrics.terraceSteps; i++) {
 			Vector3 v1 = v2;
 			Color c1 = c2;
-			v2 = HexMetrics.TerraceLerp(begin, left, i);
+			v2 = Perturb(HexMetrics.TerraceLerp(begin, left, i));
 			c2 = HexMetrics.TerraceLerp(beginCell.color, leftCell.color, i);
-			AddTriangle(v1, v2, boundary);
+			// AddTriangle(v1, v2, boundary);
+            AddTriangleUnperturbed(v1,v2,boundary);
 			AddTriangleColor(c1, c2, boundaryColor);
 		}
 
-		AddTriangle(v2, left, boundary);
+		// AddTriangle(v2, left, boundary);
+        AddTriangleUnperturbed(v2,Perturb(left),boundary);
 		AddTriangleColor(c2, leftCell.color, boundaryColor);
 	}
 
+    ///添加网格构建所需的顶点数据和顶点索引
 	void AddTriangle (Vector3 v1, Vector3 v2, Vector3 v3) {
 		int vertexIndex = vertices.Count;
-		vertices.Add(v1);
-		vertices.Add(v2);
-		vertices.Add(v3);
+		vertices.Add(Perturb(v1));
+		vertices.Add(Perturb(v2));
+		vertices.Add(Perturb(v3));
 		triangles.Add(vertexIndex);
 		triangles.Add(vertexIndex + 1);
 		triangles.Add(vertexIndex + 2);
@@ -438,10 +492,10 @@ public class HexMesh : MonoBehaviour {
 
 	void AddQuad (Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4) {
 		int vertexIndex = vertices.Count;
-		vertices.Add(v1);
-		vertices.Add(v2);
-		vertices.Add(v3);
-		vertices.Add(v4);
+		vertices.Add(Perturb(v1));
+		vertices.Add(Perturb(v2));
+		vertices.Add(Perturb(v3));
+		vertices.Add(Perturb(v4));
 		triangles.Add(vertexIndex);
 		triangles.Add(vertexIndex + 2);
 		triangles.Add(vertexIndex + 1);
@@ -464,12 +518,70 @@ public class HexMesh : MonoBehaviour {
 		colors.Add(c4);
 	}
 
+    ///通过噪音图的数据来扰动坐标点
     Vector3 Perturb(Vector3 position)
     {
         Vector4 sample = HexMetrics.SampleNoise(position);
-        position.x += sample.x;
-        position.y += sample.y;
-        position.z += sample.z;
+
+        //将扰动范围从0-1更改到-1-1范围
+        position.x += (sample.x * 2f - 1f) * HexMetrics.cellPerturbStrength;
+        position.z += (sample.z * 2f - 1f) * HexMetrics.cellPerturbStrength;
+
+        //去掉Y方向即高度上的扰动，保持细胞的高度一致性，避免高度的扰动导致裂缝的出现
+        // position.y += (sample.y * 2f - 1f) * HexMetrics.cellPerturbStrength;
+
         return position;
+    }
+
+
+    /// <summary>
+    /// 拓展后的六边形构建方式
+    /// 将原来的两个顶点之间的三角面增加至多个
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="edge"></param>
+    /// <param name="color"></param>
+    void TriangulateEdgeFan(Vector3 center,EdgeVertices edge,Color color)
+    {
+        AddTriangle(center,edge.v1,edge.v2);
+        AddTriangleColor(color);
+        AddTriangle(center,edge.v2,edge.v3);
+        AddTriangleColor(color);
+        AddTriangle(center,edge.v3,edge.v4);
+        AddTriangleColor(color);
+    }
+
+    /// <summary>
+    /// 拓展后的于邻居间桥的构建
+    /// </summary>
+    /// <param name="e1"></param>
+    /// <param name="c1"></param>
+    /// <param name="e2"></param>
+    /// <param name="c2"></param>
+    void TriangulateEdgeStrip(EdgeVertices e1,Color c1,EdgeVertices e2,Color c2)
+    {
+        AddQuad(e1.v1,e1.v2,e2.v1,e2.v2);
+        AddQuadColor(c1,c2);
+        AddQuad(e1.v2,e1.v3,e2.v2,e2.v3);
+        AddQuadColor(c1,c2);
+        AddQuad(e1.v3,e1.v4,e2.v3,e2.v4);
+        AddQuadColor(c1,c2);
+    }
+
+/// <summary>
+///不扰动边界点的三角面创建方法
+/// </summary>
+/// <param name="v1"></param>
+/// <param name="v2"></param>
+/// <param name="v3"></param>
+    void AddTriangleUnperturbed(Vector3 v1,Vector3 v2,Vector3 v3)
+    {
+        int vertexIndex = vertices.Count;
+        vertices.Add(v1);
+        vertices.Add(v2);
+        vertices.Add(v3);
+        triangles.Add(vertexIndex);
+        triangles.Add(vertexIndex + 1);
+        triangles.Add(vertexIndex + 2);
     }
 }

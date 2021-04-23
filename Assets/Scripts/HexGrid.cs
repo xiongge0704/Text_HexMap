@@ -107,5 +107,8 @@ public class HexGrid : MonoBehaviour {
 			new Vector2(position.x, position.z);
 		label.text = cell.coordinates.ToStringOnSeparateLines();
 		cell.uiRect = label.rectTransform;
+
+        //立即设置高度，触发高度的扰动
+        cell.Elevation = 0;
 	}
 }

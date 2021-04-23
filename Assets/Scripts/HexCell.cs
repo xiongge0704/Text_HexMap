@@ -16,10 +16,13 @@ public class HexCell : MonoBehaviour {
 			elevation = value;
 			Vector3 position = transform.localPosition;
 			position.y = value * HexMetrics.elevationStep;
+            //对整个高度进行扰动
+            position.y += (HexMetrics.SampleNoise(position).y * 2f - 1f) * HexMetrics.elevationPerturbStrength;
+
 			transform.localPosition = position;
 
 			Vector3 uiPosition = uiRect.localPosition;
-			uiPosition.z = elevation * -HexMetrics.elevationStep;
+			uiPosition.z =  -position.y;//elevation * -HexMetrics.elevationStep;
 			uiRect.localPosition = uiPosition;
 		}
 	}
@@ -59,4 +62,11 @@ public class HexCell : MonoBehaviour {
 			elevation, otherCell.elevation
 		);
 	}
+
+    public Vector3 Position
+    {
+        get{
+            return transform.localPosition;
+        }
+    }
 }

@@ -32,7 +32,17 @@ public static class HexMetrics {
     /// </summary>
 	public const float verticalTerraceStepSize = 1f / (terracesPerSlope + 1);
 
+    ///噪声图源
     public static Texture2D noiseSource;
+
+    ///噪声影响六边形细胞的强度
+    public const float cellPerturbStrength = 5f;
+
+    /// 噪声缩放，主要是避免破坏单个细胞的连续性
+    public const float noiseScale = 0.003f;
+
+    ///单个细胞垂直高度上的扰动强度，作用于单个整体细胞，而不是对当个细胞的所有顶点做不同的扰动
+    public const float elevationPerturbStrength = 1.5f;
 
 	static Vector3[] corners = {
 		new Vector3(0f, 0f, outerRadius),
@@ -132,6 +142,6 @@ public static class HexMetrics {
     ///通过空间坐标得到噪音图中的4维数据
     public static Vector4 SampleNoise(Vector3 position)
     {
-        return noiseSource.GetPixelBilinear(position.x,position.z);
+        return noiseSource.GetPixelBilinear(position.x * noiseScale,position.z * noiseScale);
     }
 }
