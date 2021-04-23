@@ -44,6 +44,11 @@ public static class HexMetrics {
     ///单个细胞垂直高度上的扰动强度，作用于单个整体细胞，而不是对当个细胞的所有顶点做不同的扰动
     public const float elevationPerturbStrength = 1.5f;
 
+    /// <summary>
+    /// 大地图块网格大小
+    /// </summary>
+    public const int chunkSizeX = 5,chunkSizeZ = 5;
+
 	static Vector3[] corners = {
 		new Vector3(0f, 0f, outerRadius),
 		new Vector3(innerRadius, 0f, 0.5f * outerRadius),
