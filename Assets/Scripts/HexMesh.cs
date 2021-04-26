@@ -95,7 +95,29 @@ public class HexMesh : MonoBehaviour {
 
         #region HexMap4中新的六边形构建方式
         EdgeVertices e = new EdgeVertices(center + HexMetrics.GetFirstSolidCorner(direction),center + HexMetrics.GetSecondSolidCorner(direction));
-        TriangulateEdgeFan(center,e,cell.Color);
+
+        //区分细胞中间是否有河道，并用对应的方法绘制
+        if (cell.HasRiver)
+        {
+            if (cell.HasRiverThroughEdge(direction))
+            {
+                e.v3.y = cell.StreamBedY;
+                if(cell.HasRiverBeginOrEnd)
+                {
+                    TriangulateWithRiverBeginOrEnd(direction, cell, center, e);
+                }
+                else
+                {
+                    TriangulateWithRiver(direction, cell, center, e);
+                }                
+            }
+        }
+        else
+        {
+            TriangulateEdgeFan(center, e, cell.Color);
+        }
+
+        
         #endregion
 
         ///固定东北方向为初始方向，按顺时针顺序，选取前三个邻居关联,创建连接处所需的三角面
@@ -103,6 +125,51 @@ public class HexMesh : MonoBehaviour {
 			TriangulateConnection(direction, cell,e);
 		}
 	}
+
+    /// <summary>
+    /// 细胞中心河流河道的绘制方法
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="center"></param>
+    /// <param name="e"></param>
+    void TriangulateWithRiver(HexDirection direction,HexCell cell,Vector3 center,EdgeVertices e)
+    {
+        //通过前一个方向得到中心点往左偏移的位置
+        Vector3 centerL = center + HexMetrics.GetFirstSolidCorner(direction.Previous()) * 0.25f;
+        //通过下一个方向得到中心点往右偏移的位置
+        Vector3 centerR = center + HexMetrics.GetSecondSolidCorner(direction.Next()) * 0.25f;
+        //得到偏移后的左右两点与细胞的边界顶点做差值，得到中间位置的点
+        EdgeVertices m = new EdgeVertices(Vector3.Lerp(centerL, e.v1, 0.5f),Vector3.Lerp(centerR,e.v5,0.5f),1f/6f);
+        //将细胞顶面中的河道中心线的高度设为一样
+        m.v3.y = center.y = e.v3.y;
+
+        TriangulateEdgeStrip(m, cell.Color, e, cell.Color);
+
+        AddTriangle(centerL, m.v1, m.v2);
+        AddTriangleColor(cell.Color);
+        AddQuad(centerL, center, m.v2, m.v3);
+        AddQuadColor(cell.Color);
+        AddQuad(center, centerR, m.v3, m.v4);
+        AddQuadColor(cell.Color);
+        AddTriangle(centerR, m.v4, m.v5);
+        AddTriangleColor(cell.Color);
+    }
+
+    /// <summary>
+    /// 河道开始和结束的绘制
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="center"></param>
+    /// <param name="e"></param>
+    void TriangulateWithRiverBeginOrEnd(HexDirection direction,HexCell cell,Vector3 center,EdgeVertices e)
+    {
+        EdgeVertices m = new EdgeVertices(Vector3.Lerp(center, e.v1, 0.5f), Vector3.Lerp(center, e.v5, 0.5f));
+        m.v3.y = e.v3.y;
+        TriangulateEdgeStrip(m, cell.Color, e, cell.Color);
+        TriangulateEdgeFan(center, m, cell.Color);
+    }
 
     /// <summary>
     /// 六边形连接处的面片
@@ -121,16 +188,21 @@ public class HexMesh : MonoBehaviour {
 
         #region 新方法，通过结构体计算
         bridge.y = neighbor.Position.y - cell.Position.y;
-        EdgeVertices e2 = new EdgeVertices(e1.v1 + bridge,e1.v4 + bridge);
+        EdgeVertices e2 = new EdgeVertices(e1.v1 + bridge,e1.v5 + bridge);
+
+        if (cell.HasRiverThroughEdge(direction))
+        {
+            e2.v3.y = neighbor.StreamBedY;
+        }
         #endregion
 
         #region 原始方法
         // //六边形的当前邻居边的两顶点加上桥向量，得到对应矩形桥的四个顶点
-		// Vector3 v3 = v1 + bridge;
-		// Vector3 v4 = v2 + bridge;
+        // Vector3 v3 = v1 + bridge;
+        // Vector3 v4 = v2 + bridge;
 
         // //设置高度,替换成扰动后的
-		// v3.y = v4.y = neighbor.Position.y;//neighbor.Elevation * HexMetrics.elevationStep;
+        // v3.y = v4.y = neighbor.Position.y;//neighbor.Elevation * HexMetrics.elevationStep;
 
         // //新增顶点后，对应的邻居之间的桥也要有对应的顶点做关联
         // Vector3 e3 = Vector3.Lerp(v3,v4,1f / 3f);
@@ -138,7 +210,7 @@ public class HexMesh : MonoBehaviour {
         #endregion
 
         //与邻居间的桥--------
-		if (cell.GetEdgeType(direction) == HexEdgeType.Slope) {
+        if (cell.GetEdgeType(direction) == HexEdgeType.Slope) {
             //与邻居的高度差为坡，作为楼梯型的样子
 			TriangulateEdgeTerraces(e1, cell, e2, neighbor);
 		}
@@ -163,7 +235,7 @@ public class HexMesh : MonoBehaviour {
         //选取前两东邻居索引前的邻居围成角落
 		if (direction <= HexDirection.E && nextNeighbor != null) {
             //通过下一邻居得到的桥向量，与v2点计算得到角落三角面的最后一个顶点
-			Vector3 v5 = e1.v4 + HexMetrics.GetBridge(direction.Next());
+			Vector3 v5 = e1.v5 + HexMetrics.GetBridge(direction.Next());
             //替换成扰动后的高度
 			v5.y = nextNeighbor.Position.y;//nextNeighbor.Elevation * HexMetrics.elevationStep;
 
@@ -173,23 +245,23 @@ public class HexMesh : MonoBehaviour {
                 //当前比下一顺位的邻居低，即当前最低
 				if (cell.Elevation <= nextNeighbor.Elevation) {
                     //角落三角形，当前顶点为底部，邻居为左边顶点，下一顺位邻居为右边顶点
-					TriangulateCorner(e1.v4, cell, e2.v4, neighbor, v5, nextNeighbor);
+					TriangulateCorner(e1.v5, cell, e2.v5, neighbor, v5, nextNeighbor);
 				}
                 //当前比下一顺位的邻居高，即下一顺位最低
 				else {
                     //角落三角形，下一顺位邻居为底部顶点，当前为左边顶点，邻居为右边顶点
-					TriangulateCorner(v5, nextNeighbor, e1.v4, cell, e2.v4, neighbor);
+					TriangulateCorner(v5, nextNeighbor, e1.v5, cell, e2.v5, neighbor);
 				}
 			}
             //当前最高，邻居小于等于下一顺位邻居高度，即邻居为最矮
 			else if (neighbor.Elevation <= nextNeighbor.Elevation) {
                 //角落三角形，邻居为底部顶点，下一顺位邻居为左顶点，当前为右顶点
-				TriangulateCorner(e2.v4, neighbor, v5, nextNeighbor, e1.v4, cell);
+				TriangulateCorner(e2.v5, neighbor, v5, nextNeighbor, e1.v5, cell);
 			}
             //当前最高，邻居大于下一顺位邻居高度，即下一顺位邻居为最矮
 			else {
                 //下一顺位
-				TriangulateCorner(v5, nextNeighbor, e1.v4, cell, e2.v4, neighbor);
+				TriangulateCorner(v5, nextNeighbor, e1.v5, cell, e2.v5, neighbor);
 			}
 		}
         //------------------------------------------------------
@@ -511,7 +583,16 @@ public class HexMesh : MonoBehaviour {
 		colors.Add(c2);
 	}
 
-	void AddQuadColor (Color c1, Color c2, Color c3, Color c4) {
+    void AddQuadColor(Color color)
+    {
+        colors.Add(color);
+        colors.Add(color);
+        colors.Add(color);
+        colors.Add(color);
+    }
+
+
+    void AddQuadColor (Color c1, Color c2, Color c3, Color c4) {
 		colors.Add(c1);
 		colors.Add(c2);
 		colors.Add(c3);
@@ -547,7 +628,9 @@ public class HexMesh : MonoBehaviour {
         AddTriangleColor(color);
         AddTriangle(center,edge.v2,edge.v3);
         AddTriangleColor(color);
-        AddTriangle(center,edge.v3,edge.v4);
+        AddTriangle(center, edge.v3, edge.v4);
+        AddTriangleColor(color);
+        AddTriangle(center,edge.v4,edge.v5);
         AddTriangleColor(color);
     }
 
@@ -564,7 +647,9 @@ public class HexMesh : MonoBehaviour {
         AddQuadColor(c1,c2);
         AddQuad(e1.v2,e1.v3,e2.v2,e2.v3);
         AddQuadColor(c1,c2);
-        AddQuad(e1.v3,e1.v4,e2.v3,e2.v4);
+        AddQuad(e1.v3, e1.v4, e2.v3, e2.v4);
+        AddQuadColor(c1, c2);
+        AddQuad(e1.v4,e1.v5,e2.v4,e2.v5);
         AddQuadColor(c1,c2);
     }
 

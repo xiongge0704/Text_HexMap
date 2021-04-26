@@ -73,6 +73,17 @@ public class HexCell : MonoBehaviour {
 	HexCell[] neighbors;
 
     /// <summary>
+    /// 河床垂直位置
+    /// </summary>
+    public float StreamBedY
+    {
+        get
+        {
+            return (elevation + HexMetrics.streamBedElevationOffset) * HexMetrics.elevationStep;
+        }
+    }
+
+    /// <summary>
     /// 通过邻居索引值获得对应邻居的对象
     /// </summary>
     /// <param name="direction"></param>
@@ -161,6 +172,9 @@ public class HexCell : MonoBehaviour {
         }
     }
 
+    /// <summary>
+    /// 当前细胞中河道是否是开始或结束
+    /// </summary>
     public bool HasRiverBeginOrEnd
     {
         get{
@@ -168,6 +182,11 @@ public class HexCell : MonoBehaviour {
         }
     }
 
+    /// <summary>
+    /// 河流流过边界是否有效
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <returns></returns>
     public bool HasRiverThroughEdge(HexDirection direction)
     {
         return hasIncomingRiver && incomingRiver == direction || hasOutgoingRiver && outgoingRiver == direction;

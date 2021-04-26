@@ -36,7 +36,7 @@ public static class HexMetrics {
     public static Texture2D noiseSource;
 
     ///噪声影响六边形细胞的强度
-    public const float cellPerturbStrength = 5f;
+    public const float cellPerturbStrength = 0f;//5f;
 
     /// 噪声缩放，主要是避免破坏单个细胞的连续性
     public const float noiseScale = 0.003f;
@@ -48,6 +48,8 @@ public static class HexMetrics {
     /// 大地图块网格大小
     /// </summary>
     public const int chunkSizeX = 5,chunkSizeZ = 5;
+
+    public const float streamBedElevationOffset = -1f;
 
 	static Vector3[] corners = {
 		new Vector3(0f, 0f, outerRadius),
