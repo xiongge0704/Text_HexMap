@@ -2,12 +2,26 @@
 
 public static class HexMetrics {
 
+    /// <summary>
+    /// 外圈圆转换到内圈圆的比例
+    /// 其实就是余弦值
+    /// </summary>
     public const float outerToInner = 0.866025404f;
 
+    /// <summary>
+    /// 内圈转换到外圈的比例
+    /// 就是余弦值取反
+    /// </summary>
     public const float innerToOuter = 1f / outerToInner;
 
+    /// <summary>
+    /// 外圈半径
+    /// </summary>
     public const float outerRadius = 10f;
 
+    /// <summary>
+    /// 内圈半径
+    /// </summary>
 	public const float innerRadius = outerRadius * outerToInner;
 
 	public const float solidFactor = 0.75f;

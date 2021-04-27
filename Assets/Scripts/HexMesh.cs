@@ -111,6 +111,10 @@ public class HexMesh : MonoBehaviour {
                     TriangulateWithRiver(direction, cell, center, e);
                 }                
             }
+            else
+            {
+                TriangulateAdjacentToRiver(direction, cell, center, e);
+            }
         }
         else
         {
@@ -201,6 +205,46 @@ public class HexMesh : MonoBehaviour {
     {
         EdgeVertices m = new EdgeVertices(Vector3.Lerp(center, e.v1, 0.5f), Vector3.Lerp(center, e.v5, 0.5f));
         m.v3.y = e.v3.y;
+        TriangulateEdgeStrip(m, cell.Color, e, cell.Color);
+        TriangulateEdgeFan(center, m, cell.Color);
+    }
+
+    /// <summary>
+    /// 填充河道细胞中其他没有河道的顶面部分
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="center"></param>
+    /// <param name="e"></param>
+    void TriangulateAdjacentToRiver(HexDirection direction,HexCell cell,Vector3 center,EdgeVertices e)
+    {
+        if(cell.HasRiverThroughEdge(direction.Next()))
+        {
+            if (cell.HasRiverThroughEdge(direction.Previous()))
+            {
+                //当前方向的前一个方向和后一个方向上都有河道
+                //就是河道的流入和流出之间相差一个方向单位
+                center += HexMetrics.GetSoliEdgeMiddle(direction) * (HexMetrics.innerToOuter * 0.5f);
+            }
+            else if (cell.HasRiverThroughEdge(direction.Previous2()))
+            {
+                //当前方向的前一个方向和后两个方向上都有河道
+                //就是笔直的河道，这是靠近前一个方向上的
+                center += HexMetrics.GetFirstSolidCorner(direction) * 0.25f;
+            }
+        }
+        else if (cell.HasRiverThroughEdge(direction.Previous()) && cell.HasRiverThroughEdge(direction.Next2()))
+        {
+            //当前方向的后一个方向和前两个方向上都有河道
+            //就是笔直的河道，这是靠近后一个方向上的
+            center += HexMetrics.GetSecondSolidCorner(direction) * 0.25f;
+        }
+
+        EdgeVertices m = new EdgeVertices(
+            Vector3.Lerp(center, e.v1, 0.5f),
+            Vector3.Lerp(center, e.v5, 0.5f)
+        );
+
         TriangulateEdgeStrip(m, cell.Color, e, cell.Color);
         TriangulateEdgeFan(center, m, cell.Color);
     }
