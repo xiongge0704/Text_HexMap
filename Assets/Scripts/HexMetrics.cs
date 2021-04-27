@@ -179,4 +179,18 @@ public static class HexMetrics {
     {
         return (corners[(int)direction] + corners[(int)direction + 1]) * (0.5f * solidFactor);
     }
+
+    public static Vector3 Perturb(Vector3 position)
+    {
+        Vector4 sample = SampleNoise(position);
+
+        //将扰动范围从0-1更改到-1-1范围
+        position.x += (sample.x * 2f - 1f) * cellPerturbStrength;
+        position.z += (sample.z * 2f - 1f) * cellPerturbStrength;
+
+        //去掉Y方向即高度上的扰动，保持细胞的高度一致性，避免高度的扰动导致裂缝的出现
+        // position.y += (sample.y * 2f - 1f) * HexMetrics.cellPerturbStrength;
+
+        return position;
+    }
 }
