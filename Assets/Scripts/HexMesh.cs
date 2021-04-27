@@ -128,6 +128,7 @@ public class HexMesh : MonoBehaviour {
 
     /// <summary>
     /// 细胞中心河流河道的绘制方法
+    /// 有流入和有流出的情况
     /// </summary>
     /// <param name="direction"></param>
     /// <param name="cell"></param>
@@ -135,10 +136,42 @@ public class HexMesh : MonoBehaviour {
     /// <param name="e"></param>
     void TriangulateWithRiver(HexDirection direction,HexCell cell,Vector3 center,EdgeVertices e)
     {
-        //通过前一个方向得到中心点往左偏移的位置
-        Vector3 centerL = center + HexMetrics.GetFirstSolidCorner(direction.Previous()) * 0.25f;
-        //通过下一个方向得到中心点往右偏移的位置
-        Vector3 centerR = center + HexMetrics.GetSecondSolidCorner(direction.Next()) * 0.25f;
+        Vector3 centerL, centerR;
+
+        if(cell.HasRiverThroughEdge(direction.Opposite()))
+        {
+            //通过前一个方向得到中心点往左偏移的位置
+            centerL = center + HexMetrics.GetFirstSolidCorner(direction.Previous()) * 0.25f;
+            //通过下一个方向得到中心点往右偏移的位置
+            centerR = center + HexMetrics.GetSecondSolidCorner(direction.Next()) * 0.25f;
+        }
+        else if(cell.HasRiverThroughEdge(direction.Next()))
+        {
+            //同一个细胞中，如果当前方向相邻1个单位方向上有河道，那么相连处河道拓宽，让河流能通过
+            centerL = center;
+            centerR = Vector3.Lerp(center, e.v5, 2f / 3f);
+        }
+        else if(cell.HasRiverThroughEdge(direction.Previous()))
+        {
+            //同一个细胞中，如果当前方向相邻1个单位方向上有河道，那么相连处河道拓宽，让河流能通过
+            centerL = Vector3.Lerp(center, e.v1, 2f / 3f);
+            centerR = center;
+        }
+        else if(cell.HasRiverThroughEdge(direction.Next2()))
+        {
+            //同一个细胞中，如果当前方向相邻2个单位方向上有河道
+            centerL = center;
+            centerR = center + HexMetrics.GetSoliEdgeMiddle(direction.Next()) * (0.5f * HexMetrics.innerToOuter);
+        }
+        else
+        {
+            //同一个细胞中，如果当前方向相邻2个单位方向上有河道
+            centerL = center + HexMetrics.GetSoliEdgeMiddle(direction.Previous()) * (0.5f * HexMetrics.innerToOuter);
+            centerR = center;
+        }
+
+        center = Vector3.Lerp(centerL, centerR, 0.5f);
+        
         //得到偏移后的左右两点与细胞的边界顶点做差值，得到中间位置的点
         EdgeVertices m = new EdgeVertices(Vector3.Lerp(centerL, e.v1, 0.5f),Vector3.Lerp(centerR,e.v5,0.5f),1f/6f);
         //将细胞顶面中的河道中心线的高度设为一样
@@ -158,6 +191,7 @@ public class HexMesh : MonoBehaviour {
 
     /// <summary>
     /// 河道开始和结束的绘制
+    /// 只有流入或流出的情况
     /// </summary>
     /// <param name="direction"></param>
     /// <param name="cell"></param>

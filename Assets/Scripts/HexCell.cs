@@ -173,7 +173,7 @@ public class HexCell : MonoBehaviour {
     }
 
     /// <summary>
-    /// 当前细胞中河道是否是开始或结束
+    /// 当前细胞中河道是否有开始和结束
     /// </summary>
     public bool HasRiverBeginOrEnd
     {
