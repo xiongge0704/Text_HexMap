@@ -73,13 +73,24 @@ public class HexCell : MonoBehaviour {
 	HexCell[] neighbors;
 
     /// <summary>
-    /// 河床垂直位置
+    /// 河床垂直高度偏移
     /// </summary>
     public float StreamBedY
     {
         get
         {
             return (elevation + HexMetrics.streamBedElevationOffset) * HexMetrics.elevationStep;
+        }
+    }
+
+    /// <summary>
+    /// 河流垂直高度偏移
+    /// </summary>
+    public float RiverSurfaceY
+    {
+        get
+        {
+            return (elevation + HexMetrics.riverSurfaceElevationOffset) * HexMetrics.elevationStep;
         }
     }
 

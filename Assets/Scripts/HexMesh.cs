@@ -169,20 +169,21 @@ public class HexMesh : MonoBehaviour {
     {
         hexMesh.SetVertices(vertices);
         ListPool<Vector3>.Add(vertices);
-        hexMesh.SetColors(colors);
-        ListPool<Color>.Add(colors);
 
         if (useColors)
         {
-            hexMesh.SetTriangles(triangles, 0);
-            ListPool<int>.Add(triangles);
+            hexMesh.SetColors(colors);
+            ListPool<Color>.Add(colors);
         }
 
-        if(useUVCoordinates)
+        if (useUVCoordinates)
         {
             hexMesh.SetUVs(0, uvs);
             ListPool<Vector2>.Add(uvs);
         }
+
+        hexMesh.SetTriangles(triangles, 0);
+        ListPool<int>.Add(triangles);       
 
         hexMesh.RecalculateNormals();
 

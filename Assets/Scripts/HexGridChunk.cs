@@ -10,7 +10,7 @@ public class HexGridChunk:MonoBehaviour
     HexCell[] cells;
 
     //HexMesh hexMesh;
-    public HexMesh terrain;
+    public HexMesh terrain,rivers;
     Canvas gridCanvas;
 
     private void Awake() {
@@ -61,6 +61,7 @@ public class HexGridChunk:MonoBehaviour
 	public void Triangulate()
     {
         terrain.Clear();
+        rivers.Clear();
 
         //按六边形个数创建对应的六边形三角面
         for (int i = 0; i < cells.Length; i++)
@@ -69,6 +70,7 @@ public class HexGridChunk:MonoBehaviour
         }
 
         terrain.Apply();
+        rivers.Apply();
     }
 
     /// <summary>
@@ -214,6 +216,10 @@ public class HexGridChunk:MonoBehaviour
         terrain.AddQuadColor(cell.Color);
         terrain.AddTriangle(centerR, m.v4, m.v5);
         terrain.AddTriangleColor(cell.Color);
+
+        bool reversed = cell.IncomingRiver == direction;
+        TriangulateRiverQuad(centerL, centerR, m.v2, m.v4, cell.RiverSurfaceY, 0.4f, reversed);
+        TriangulateRiverQuad(m.v2, m.v4, e.v2, e.v4, cell.RiverSurfaceY, 0.6f, reversed);
     }
 
     /// <summary>
@@ -230,6 +236,22 @@ public class HexGridChunk:MonoBehaviour
         m.v3.y = e.v3.y;
         TriangulateEdgeStrip(m, cell.Color, e, cell.Color);
         TriangulateEdgeFan(center, m, cell.Color);
+
+        //开始或结束的河流绘制-----------
+        bool reversed = cell.HasIncomingRiver;
+        TriangulateRiverQuad(m.v2, m.v4, e.v2, e.v4, cell.RiverSurfaceY,0.6f, reversed);
+
+        center.y = m.v2.y = m.v4.y = cell.RiverSurfaceY; 
+        rivers.AddTriangle(center, m.v2, m.v4);
+        if(reversed)
+        {
+            rivers.AddTriangleUV(new Vector2(0.5f, 0.4f), new Vector2(1f, 0.2f), new Vector2(0f, 0.2f));
+        }
+        else
+        {
+            rivers.AddTriangleUV(new Vector2(0.5f, 0.4f), new Vector2(0.6f, 1f), new Vector2(1f, 0.6f));
+        }
+        //----------------------------
     }
 
     /// <summary>
@@ -295,6 +317,8 @@ public class HexGridChunk:MonoBehaviour
         if (cell.HasRiverThroughEdge(direction))
         {
             e2.v3.y = neighbor.StreamBedY;
+
+            TriangulateRiverQuad(e1.v2, e1.v4, e2.v2, e2.v4, cell.RiverSurfaceY, neighbor.RiverSurfaceY,0.8f, cell.HasIncomingRiver && cell.IncomingRiver == direction);
         }
         #endregion
 
@@ -712,4 +736,34 @@ public class HexGridChunk:MonoBehaviour
         terrain.AddQuadColor(c1, c2);
     }
 
+    /// <summary>
+    /// 河流绘制
+    /// </summary>
+    /// <param name="v1"></param>
+    /// <param name="v2"></param>
+    /// <param name="v3"></param>
+    /// <param name="v4"></param>
+    /// <param name="y"></param>
+    void TriangulateRiverQuad(Vector3 v1,Vector3 v2,Vector3 v3,Vector3 v4,float y1,float y2,float v, bool reversed)
+    {
+        v1.y = v2.y = y1;
+        v3.y = v4.y = y2;
+        rivers.AddQuad(v1, v2, v3, v4);
+
+        //河流方向
+        if(reversed)
+        {
+            rivers.AddQuadUV(1f, 0f, 0.8f - v, 0.6f - v);
+        }
+        else
+        {
+            rivers.AddQuadUV(0f, 1f, v, v+0.2f);
+        }
+        
+    }
+
+    void TriangulateRiverQuad(Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, float y, float v, bool reversed)
+    {
+        TriangulateRiverQuad(v1, v2, v3, v4, y, y,v, reversed);
+    }
 }
