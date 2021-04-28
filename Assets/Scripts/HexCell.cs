@@ -60,6 +60,17 @@ public class HexCell : MonoBehaviour {
                 RemoveIncomingRiver();
             }
 
+            //改变高度时
+            //如果与连接的细胞高度差过大时
+            //需要删除对应道路
+            for(int i = 0;i<roads.Length;i++)
+            {
+                if(roads[i] && GetElevationDifference((HexDirection)i) > 1)
+                {
+                    SetRoad(i, false);
+                }
+            }
+
             Refresh();
 		}
 	}
@@ -71,6 +82,9 @@ public class HexCell : MonoBehaviour {
 
 	[SerializeField]
 	HexCell[] neighbors;
+
+    [SerializeField]
+    bool[] roads;
 
     /// <summary>
     /// 河床垂直高度偏移
@@ -281,13 +295,17 @@ public class HexCell : MonoBehaviour {
         ///设置对应方向的流出河流
         hasOutgoingRiver = true;
         outgoingRiver = direction;
-        RefreshSelfOnly();
+        //RefreshSelfOnly();
 
         ///同时设置对应的邻居细胞中的流入河流
         neighbor.RemoveIncomingRiver();
         neighbor.hasIncomingRiver = true;
         neighbor.incomingRiver = direction.Opposite();
-        neighbor.RefreshSelfOnly();
+        //neighbor.RefreshSelfOnly();
+
+        //设置道路状态时也会刷新
+        //所以无需在上面重复调用刷新
+        SetRoad((int)direction, false);
     }
 
     /// <summary>
@@ -297,5 +315,88 @@ public class HexCell : MonoBehaviour {
     void RefreshSelfOnly()
     {
         chunk.Refresh();
+    }
+
+    /// <summary>
+    /// 返回对应方向上是否有道路
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <returns></returns>
+    public bool HasRoadThroughEdge(HexDirection direction)
+    {
+        return roads[(int)direction];
+    }
+
+    /// <summary>
+    /// 检测当前细胞中是否有道路
+    /// </summary>
+    public bool HasRoads
+    {
+        get
+        {
+            for(int i = 0;i<roads.Length;i++)
+            {
+                if(roads[i])
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 设置细胞中对应位置索引道路的状态
+    /// </summary>
+    /// <param name="index"></param>
+    /// <param name="state"></param>
+    void SetRoad(int index,bool state)
+    {
+        roads[index] = state;
+        //设置对应邻居中的道路状态
+        neighbors[index].roads[(int)((HexDirection)index).Opposite()] = state;
+
+        neighbors[index].RefreshSelfOnly();
+        RefreshSelfOnly();
+    }
+
+    /// <summary>
+    /// 删除细胞中的所有道路
+    /// </summary>
+    public void RemoveRoads()
+    {
+        for(int i = 0;i<neighbors.Length;i++)
+        {
+            if(roads[i])
+            {
+                SetRoad(i, false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 增加对应方向上的道路
+    /// </summary>
+    /// <param name="direction"></param>
+    public void AddRoad(HexDirection direction)
+    {
+        //在同一方向上有河流将不增加道路
+        //并且高度差足够小才能增加道路
+        if(!roads[(int)direction] && !HasRiverThroughEdge(direction) && GetElevationDifference(direction) <= 1)
+        {
+            SetRoad((int)direction, true);
+        }
+    }
+
+    /// <summary>
+    /// 计算与对应方向邻居的高度差
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <returns></returns>
+    public int GetElevationDifference(HexDirection direction)
+    {
+        int difference = elevation - GetNeighbor(direction).elevation;
+        return difference >= 0 ? difference : -difference;
     }
 }

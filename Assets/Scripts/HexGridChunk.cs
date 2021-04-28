@@ -10,7 +10,7 @@ public class HexGridChunk:MonoBehaviour
     HexCell[] cells;
 
     //HexMesh hexMesh;
-    public HexMesh terrain,rivers;
+    public HexMesh terrain,rivers,roads;
     Canvas gridCanvas;
 
     private void Awake() {
@@ -62,6 +62,7 @@ public class HexGridChunk:MonoBehaviour
     {
         terrain.Clear();
         rivers.Clear();
+        roads.Clear();
 
         //按六边形个数创建对应的六边形三角面
         for (int i = 0; i < cells.Length; i++)
@@ -71,6 +72,7 @@ public class HexGridChunk:MonoBehaviour
 
         terrain.Apply();
         rivers.Apply();
+        roads.Apply();
     }
 
     /// <summary>
@@ -142,7 +144,8 @@ public class HexGridChunk:MonoBehaviour
         }
         else
         {
-            TriangulateEdgeFan(center, e, cell.Color);
+            //TriangulateEdgeFan(center, e, cell.Color);
+            TriangulateWithoutRiver(direction, cell, center, e);
         }
 
 
@@ -152,6 +155,17 @@ public class HexGridChunk:MonoBehaviour
         if (direction <= HexDirection.SE)
         {
             TriangulateConnection(direction, cell, e);
+        }
+    }
+
+    void TriangulateWithoutRiver(HexDirection direction,HexCell cell,Vector3 center,EdgeVertices e)
+    {
+        TriangulateEdgeFan(center, e, cell.Color);
+
+        if(cell.HasRoads)
+        {
+            Vector2 interpolators = GetRoadInterpolators(direction, cell);
+            TriangulateRoad(center, Vector3.Lerp(center, e.v1, interpolators.x), Vector3.Lerp(center, e.v5, interpolators.y), e,cell.HasRoadThroughEdge(direction));
         }
     }
 
@@ -339,7 +353,7 @@ public class HexGridChunk:MonoBehaviour
         if (cell.GetEdgeType(direction) == HexEdgeType.Slope)
         {
             //与邻居的高度差为坡，作为楼梯型的样子
-            TriangulateEdgeTerraces(e1, cell, e2, neighbor);
+            TriangulateEdgeTerraces(e1, cell, e2, neighbor,cell.HasRoadThroughEdge(direction));
         }
         else
         {
@@ -352,7 +366,7 @@ public class HexGridChunk:MonoBehaviour
             // AddQuad(e2,v2,e4,v4);
             // AddQuadColor(cell.color, neighbor.color);
 
-            TriangulateEdgeStrip(e1, cell.Color, e2, neighbor.Color);
+            TriangulateEdgeStrip(e1, cell.Color, e2, neighbor.Color,cell.HasRoadThroughEdge(direction));
         }
         //-----------------
 
@@ -490,7 +504,8 @@ public class HexGridChunk:MonoBehaviour
     /// </summary>
 	void TriangulateEdgeTerraces(
         EdgeVertices begin, HexCell beginCell,
-        EdgeVertices end, HexCell endCell
+        EdgeVertices end, HexCell endCell,
+        bool hasRoad
     )
     {
         #region 原始方法
@@ -520,7 +535,7 @@ public class HexGridChunk:MonoBehaviour
         EdgeVertices e2 = EdgeVertices.TerraceLerp(begin, end, 1);
         Color c2 = HexMetrics.TerraceLerp(beginCell.Color, endCell.Color, 1);
 
-        TriangulateEdgeStrip(begin, beginCell.Color, e2, c2);
+        TriangulateEdgeStrip(begin, beginCell.Color, e2, c2,hasRoad);
 
         for (int i = 2; i < HexMetrics.terraceSteps; i++)
         {
@@ -528,10 +543,10 @@ public class HexGridChunk:MonoBehaviour
             Color c1 = c2;
             e2 = EdgeVertices.TerraceLerp(begin, end, i);
             c2 = HexMetrics.TerraceLerp(beginCell.Color, endCell.Color, i);
-            TriangulateEdgeStrip(e1, c1, e2, c2);
+            TriangulateEdgeStrip(e1, c1, e2, c2,hasRoad);
         }
 
-        TriangulateEdgeStrip(e2, c2, end, endCell.Color);
+        TriangulateEdgeStrip(e2, c2, end, endCell.Color,hasRoad);
         #endregion
     }
 
@@ -724,7 +739,7 @@ public class HexGridChunk:MonoBehaviour
     /// <param name="c1"></param>
     /// <param name="e2"></param>
     /// <param name="c2"></param>
-    void TriangulateEdgeStrip(EdgeVertices e1, Color c1, EdgeVertices e2, Color c2)
+    void TriangulateEdgeStrip(EdgeVertices e1, Color c1, EdgeVertices e2, Color c2,bool hasRoad = false)
     {
         terrain.AddQuad(e1.v1, e1.v2, e2.v1, e2.v2);
         terrain.AddQuadColor(c1, c2);
@@ -734,6 +749,13 @@ public class HexGridChunk:MonoBehaviour
         terrain.AddQuadColor(c1, c2);
         terrain.AddQuad(e1.v4, e1.v5, e2.v4, e2.v5);
         terrain.AddQuadColor(c1, c2);
+
+
+        //平面的道路
+        if(hasRoad)
+        {
+            TriangulateRoadSegment(e1.v2, e1.v3, e1.v4, e2.v2, e2.v3, e2.v4);
+        }
     }
 
     /// <summary>
@@ -765,5 +787,84 @@ public class HexGridChunk:MonoBehaviour
     void TriangulateRiverQuad(Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, float y, float v, bool reversed)
     {
         TriangulateRiverQuad(v1, v2, v3, v4, y, y,v, reversed);
+    }
+
+    /// <summary>
+    /// 细胞与邻居间的连接处道路绘制
+    /// </summary>
+    /// <param name="v1"></param>
+    /// <param name="v2"></param>
+    /// <param name="v3"></param>
+    /// <param name="v4"></param>
+    /// <param name="v5"></param>
+    /// <param name="v6"></param>
+    void TriangulateRoadSegment(Vector3 v1,Vector3 v2,Vector3 v3,Vector3 v4,Vector3 v5,Vector3 v6)
+    {
+        roads.AddQuad(v1, v2, v4, v5);
+        roads.AddQuad(v2, v3, v5, v6);
+        roads.AddQuadUV(0f, 1f, 0f, 0f);
+        roads.AddQuadUV(1f, 0f, 0f, 0f);
+    }
+
+    /// <summary>
+    /// 细胞中间部分的道路绘制
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="mL"></param>
+    /// <param name="mR"></param>
+    /// <param name="e"></param>
+    void TriangulateRoad(Vector3 center,Vector3 mL,Vector3 mR,EdgeVertices e,bool hasRoadThroughCellEdge)
+    {
+        if(hasRoadThroughCellEdge)
+        {
+            Vector3 mC = Vector3.Lerp(mL, mR, 0.5f);
+            TriangulateRoadSegment(mL, mC, mR, e.v2, e.v3, e.v4);
+            roads.AddTriangle(center, mL, mC);
+            roads.AddTriangle(center, mC, mR);
+            roads.AddTriangleUV(new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(1f, 0f));
+            roads.AddTriangleUV(new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f));
+        }
+        else
+        {
+            TriangulateRoadEdge(center, mL, mR);
+        }
+    }
+
+    /// <summary>
+    /// 道路的边缘
+    /// 即道路的末端
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="mL"></param>
+    /// <param name="mR"></param>
+    void TriangulateRoadEdge(Vector3 center,Vector3 mL,Vector3 mR)
+    {
+        roads.AddTriangle(center, mL, mR);
+        roads.AddTriangleUV(new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f));
+    }
+
+    /// <summary>
+    /// 平滑道路末端
+    /// 即细胞中心位置道路绘制
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <returns></returns>
+    Vector2 GetRoadInterpolators(HexDirection direction,HexCell cell)
+    {
+        Vector2 interpolators;
+
+        if(cell.HasRoadThroughEdge(direction))
+        {
+            interpolators.x = interpolators.y = 0.5f;
+        }
+        else
+        {
+            //对应方向上没有道路时
+            //缩小中心位置的绘制范围，达到整体道路更加的平滑好看
+            interpolators.x = cell.HasRoadThroughEdge(direction.Previous()) ? 0.5f : 0.25f;
+            interpolators.y = cell.HasRoadThroughEdge(direction.Next()) ? 0.5f : 0.25f;
+        }
+        return interpolators;
     }
 }
