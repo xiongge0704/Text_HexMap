@@ -399,4 +399,15 @@ public class HexCell : MonoBehaviour {
         int difference = elevation - GetNeighbor(direction).elevation;
         return difference >= 0 ? difference : -difference;
     }
+
+    /// <summary>
+    /// 获得河流的流入或流出方向
+    /// </summary>
+    public HexDirection RiverBeginOrEndDirection
+    {
+        get
+        {
+            return hasIncomingRiver ? incomingRiver : outgoingRiver;
+        }
+    }
 }

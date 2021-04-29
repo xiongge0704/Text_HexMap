@@ -54,7 +54,7 @@ public static class HexMetrics {
     public static Texture2D noiseSource;
 
     ///噪声影响六边形细胞的强度
-    public const float cellPerturbStrength = 4f;
+    public const float cellPerturbStrength = 0f;//4f;
 
     /// 噪声缩放，主要是避免破坏单个细胞的连续性
     public const float noiseScale = 0.003f;

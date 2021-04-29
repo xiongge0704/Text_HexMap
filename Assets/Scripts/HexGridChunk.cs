@@ -158,6 +158,18 @@ public class HexGridChunk:MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 细胞中没有河流的时候
+    /// 因为是特指没有河流的情况
+    /// 在河流和道路共存的时候
+    /// 将无法在细胞中绘制道路
+    /// 所以需要在另外的函数中处理这种情况
+    /// 即TriangulateAdjacentToRiver中
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="center"></param>
+    /// <param name="e"></param>
     void TriangulateWithoutRiver(HexDirection direction,HexCell cell,Vector3 center,EdgeVertices e)
     {
         TriangulateEdgeFan(center, e, cell.Color);
@@ -270,6 +282,7 @@ public class HexGridChunk:MonoBehaviour
 
     /// <summary>
     /// 填充河道细胞中其他没有河道的顶面部分
+    /// 在此函数中处理河流和道路共存的情况
     /// </summary>
     /// <param name="direction"></param>
     /// <param name="cell"></param>
@@ -277,6 +290,11 @@ public class HexGridChunk:MonoBehaviour
     /// <param name="e"></param>
     void TriangulateAdjacentToRiver(HexDirection direction, HexCell cell, Vector3 center, EdgeVertices e)
     {
+        if(cell.HasRoads)
+        {
+            TriangulateRoadAdjacentToRiver(direction, cell, center, e);
+        }
+
         if (cell.HasRiverThroughEdge(direction.Next()))
         {
             if (cell.HasRiverThroughEdge(direction.Previous()))
@@ -306,6 +324,126 @@ public class HexGridChunk:MonoBehaviour
 
         TriangulateEdgeStrip(m, cell.Color, e, cell.Color);
         TriangulateEdgeFan(center, m, cell.Color);
+    }
+
+    /// <summary>
+    /// 道路河流共存的时候
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="center"></param>
+    /// <param name="e"></param>
+    void TriangulateRoadAdjacentToRiver(HexDirection direction, HexCell cell, Vector3 center, EdgeVertices e)
+    {
+        bool hasRoadThroughEdge = cell.HasRoadThroughEdge(direction);
+        bool previousHasRiver = cell.HasRiverThroughEdge(direction.Previous());
+        bool nextHasRiver = cell.HasRiverThroughEdge(direction.Next());
+        Vector2 interpolators = GetRoadInterpolators(direction, cell);
+        Vector3 roadCenter = center;
+
+        if(cell.HasRiverBeginOrEnd)
+        {
+            //细胞中有河流的开始或结束
+            //中心点道路往河流的相反方向偏移1/3位置
+            roadCenter += HexMetrics.GetSoliEdgeMiddle(cell.RiverBeginOrEndDirection.Opposite()) * (1f / 3f);
+        }
+        else if(cell.IncomingRiver == cell.OutgoingRiver.Opposite())
+        {
+            //直线河流经过细胞中心
+            //将细胞中心的道路截成两段
+            Vector3 corner;
+            if(previousHasRiver)
+            {
+                if(!hasRoadThroughEdge && !cell.HasRoadThroughEdge(direction.Next()))
+                {
+                    //河流截断道路后，如果一段没有连接的道路，将返回不在绘制
+                    //即此中心如果是道路开头或结尾
+                    //河流截断后一遍将不绘制对应面片
+                    return;
+                }
+                corner = HexMetrics.GetSecondSolidCorner(direction);
+            }
+            else
+            {
+                if(!hasRoadThroughEdge && !cell.HasRoadThroughEdge(direction.Previous()))
+                {
+                    //河流截断道路后，如果一段没有连接的道路，将返回不在绘制
+                    //即此中心如果是道路开头或结尾
+                    //河流截断后一遍将不绘制对应面片
+                    return;
+                }
+                corner = HexMetrics.GetFirstSolidCorner(direction);
+            }
+            roadCenter += corner * 0.5f;
+            center += corner * 0.25f;
+        }
+        else if(cell.IncomingRiver == cell.OutgoingRiver.Previous())
+        {
+            //之字型河流，即出和入河流是相邻的情况
+            //道路在河流汇合处偏移
+            roadCenter -= HexMetrics.GetSecondCorner(cell.IncomingRiver) * 0.2f;
+        }
+        else if(cell.IncomingRiver == cell.OutgoingRiver.Next())
+        {
+            //之字型河流，即出和入河流是相邻的情况
+            //道路在河流汇合处偏移
+            roadCenter -= HexMetrics.GetFirstCorner(cell.IncomingRiver) * 0.2f;
+        }
+        else if(previousHasRiver && nextHasRiver)
+        {
+            //河流出入间隔一个单位的方向，即呈现弧形的河流，弧形内部的情况
+            if(!hasRoadThroughEdge)
+            {
+                //头尾部分，截断后多余部分返回不绘制
+                return;
+            }
+            Vector3 offset = HexMetrics.GetSoliEdgeMiddle(direction) * HexMetrics.innerToOuter;
+            roadCenter += offset * 0.7f;
+            center += offset * 0.5f;
+        }
+        else
+        {
+            //剩下的情况，即弧形河流的弧形外部情况
+            HexDirection middle;
+            if(previousHasRiver)
+            {
+                middle = direction.Next();
+            }
+            else if(nextHasRiver)
+            {
+                middle = direction.Previous();
+            }
+            else
+            {
+                middle = direction;
+            }
+
+            if(!cell.HasRoadThroughEdge(middle) && !cell.HasRoadThroughEdge(middle.Previous()) && !cell.HasRoadThroughEdge(middle.Next()))
+            {
+                return;
+            }
+
+            roadCenter += HexMetrics.GetSoliEdgeMiddle(middle) * 0.25f;
+        }
+
+        Vector3 mL = Vector3.Lerp(roadCenter, e.v1, interpolators.x);
+        Vector3 mR = Vector3.Lerp(roadCenter, e.v5, interpolators.y);
+        TriangulateRoad(roadCenter, mL, mR, e, hasRoadThroughEdge);
+
+        //填充中心位置道路偏移后的空白位置
+        if(previousHasRiver)
+        {
+            //当前方向的前一位方向存在河流时
+            //在道路中心、单元格中心和中间左点之间添加一个三角形
+            TriangulateRoadEdge(roadCenter, center, mL);
+            //Debug.Log("Direction:" + direction);
+        }
+        if(nextHasRiver)
+        {
+            //当前方向的下一位方向存在河流时
+            //道路中心，中间的右点，和单元格中心之间添加一个三角形
+            TriangulateRoadEdge(roadCenter, mR, center);
+        }
     }
 
     /// <summary>
@@ -866,5 +1004,5 @@ public class HexGridChunk:MonoBehaviour
             interpolators.y = cell.HasRoadThroughEdge(direction.Next()) ? 0.5f : 0.25f;
         }
         return interpolators;
-    }
+    }    
 }
