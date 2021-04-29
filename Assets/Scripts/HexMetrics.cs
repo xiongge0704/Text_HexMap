@@ -69,7 +69,11 @@ public static class HexMetrics {
 
     public const float streamBedElevationOffset = -1.75f;//-1f;
 
-    public const float riverSurfaceElevationOffset = -0.5f;
+    //public const float riverSurfaceElevationOffset = -0.5f;
+    /// <summary>
+    /// 水面偏移量
+    /// </summary>
+    public const float waterElevationOffset = -0.5f;
 
 	static Vector3[] corners = {
 		new Vector3(0f, 0f, outerRadius),

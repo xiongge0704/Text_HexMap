@@ -104,7 +104,51 @@ public class HexCell : MonoBehaviour {
     {
         get
         {
-            return (elevation + HexMetrics.riverSurfaceElevationOffset) * HexMetrics.elevationStep;
+            return (elevation + HexMetrics.waterElevationOffset) * HexMetrics.elevationStep;
+        }
+    }
+
+    int waterLevel;
+
+    /// <summary>
+    /// 水位
+    /// </summary>
+    public int WaterLevel
+    {
+        get
+        {
+            return waterLevel;
+        }
+        set
+        {
+            if(waterLevel == value)
+            {
+                return;
+            }
+            waterLevel = value;
+            Refresh();
+        }
+    }
+
+    /// <summary>
+    /// 获得水面偏移
+    /// </summary>
+    public float WaterSurfaceY
+    {
+        get
+        {
+            return (waterLevel + HexMetrics.waterElevationOffset) * HexMetrics.elevationStep;
+        }
+    }
+
+    /// <summary>
+    /// 细胞是否在水下
+    /// </summary>
+    public bool IsUnderwater
+    {
+        get
+        {
+            return waterLevel > elevation;
         }
     }
 
