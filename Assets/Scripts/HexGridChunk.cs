@@ -10,7 +10,7 @@ public class HexGridChunk:MonoBehaviour
     HexCell[] cells;
 
     //HexMesh hexMesh;
-    public HexMesh terrain,rivers,roads;
+    public HexMesh terrain,rivers,roads,water,waterShore;
     Canvas gridCanvas;
 
     private void Awake() {
@@ -63,6 +63,8 @@ public class HexGridChunk:MonoBehaviour
         terrain.Clear();
         rivers.Clear();
         roads.Clear();
+        water.Clear();
+        waterShore.Clear();
 
         //按六边形个数创建对应的六边形三角面
         for (int i = 0; i < cells.Length; i++)
@@ -73,6 +75,8 @@ public class HexGridChunk:MonoBehaviour
         terrain.Apply();
         rivers.Apply();
         roads.Apply();
+        water.Apply();
+        waterShore.Apply();
     }
 
     /// <summary>
@@ -155,6 +159,108 @@ public class HexGridChunk:MonoBehaviour
         if (direction <= HexDirection.SE)
         {
             TriangulateConnection(direction, cell, e);
+        }
+
+        if(cell.IsUnderwater)
+        {
+            TriangulateWater(direction, cell, center);
+        }
+    }
+
+    /// <summary>
+    /// 细胞中的水
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="center"></param>
+    void TriangulateWater(HexDirection direction,HexCell cell,Vector3 center)
+    {
+        center.y = cell.WaterSurfaceY;
+
+        HexCell neighbor = cell.GetNeighbor(direction);
+        if(neighbor != null && !neighbor.IsUnderwater)
+        {
+            TriangulateWaterShore(direction, cell, neighbor, center);
+        }
+        else
+        {
+            TriangulateOpenWater(direction, cell, neighbor, center);
+        }
+    }
+
+    /// <summary>
+    /// 开放性水域，即相邻细胞中有水，细胞中的水连城一片
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="neighbor"></param>
+    /// <param name="center"></param>
+    void TriangulateOpenWater(HexDirection direction,HexCell cell,HexCell neighbor,Vector3 center)
+    {
+        Vector3 c1 = center + HexMetrics.GetFirstWaterCorner(direction);
+        Vector3 c2 = center + HexMetrics.GetSecondWaterCorner(direction);
+
+        water.AddTriangle(center, c1, c2);
+
+        if (direction <= HexDirection.SE && neighbor != null)
+        {
+            Vector3 bridge = HexMetrics.GetWaterBridge(direction);
+            Vector3 e1 = c1 + bridge;
+            Vector3 e2 = c2 + bridge;
+
+            water.AddQuad(c1, c2, e1, e2);
+
+            if (direction <= HexDirection.E)
+            {
+                HexCell nextNeighbor = cell.GetNeighbor(direction.Next());
+                if (nextNeighbor == null || !nextNeighbor.IsUnderwater)
+                {
+                    return;
+                }
+                water.AddTriangle(c2, e2, c2 + HexMetrics.GetWaterBridge(direction.Next()));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 封闭水域，即相邻细胞中没有水，连接细胞边，如沙滩一样
+    /// </summary>
+    /// <param name="direction"></param>
+    /// <param name="cell"></param>
+    /// <param name="neighbor"></param>
+    /// <param name="center"></param>
+    void TriangulateWaterShore(HexDirection direction,HexCell cell,HexCell neighbor,Vector3 center)
+    {
+        EdgeVertices e1 = new EdgeVertices(center + HexMetrics.GetFirstWaterCorner(direction), center + HexMetrics.GetSecondWaterCorner(direction));
+        water.AddTriangle(center, e1.v1, e1.v2);
+        water.AddTriangle(center, e1.v2, e1.v3);
+        water.AddTriangle(center, e1.v3, e1.v4);
+        water.AddTriangle(center, e1.v4, e1.v5);
+
+        //Vector3 bridge = HexMetrics.GetWaterBridge(direction);
+        //EdgeVertices e2 = new EdgeVertices(e1.v1 + bridge, e1.v5 + bridge);
+        Vector3 center2 = neighbor.Position;
+        center2.y = center.y;
+        EdgeVertices e2 = new EdgeVertices(center2 + HexMetrics.GetSecondSolidCorner(direction.Opposite()), center2 + HexMetrics.GetFirstSolidCorner(direction.Opposite()));
+        waterShore.AddQuad(e1.v1, e1.v2, e2.v1, e2.v2);
+        waterShore.AddQuad(e1.v2, e1.v3, e2.v2, e2.v3);
+        waterShore.AddQuad(e1.v3, e1.v4, e2.v3, e2.v4);
+        waterShore.AddQuad(e1.v4, e1.v5, e2.v4, e2.v5);
+        waterShore.AddQuadUV(0f, 0f, 0f, 1f);
+        waterShore.AddQuadUV(0f, 0f, 0f, 1f);
+        waterShore.AddQuadUV(0f, 0f, 0f, 1f);
+        waterShore.AddQuadUV(0f, 0f, 0f, 1f);
+
+        HexCell nextNeighbor = cell.GetNeighbor(direction.Next());
+        if(nextNeighbor != null)
+        {
+            //Vector3 center3 = nextNeighbor.Position;
+            //center3.y = center.y;
+            Vector3 v3 = nextNeighbor.Position + (nextNeighbor.IsUnderwater ? HexMetrics.GetFirstWaterCorner(direction.Previous()) : HexMetrics.GetFirstSolidCorner(direction.Previous()));
+            v3.y = center.y;
+            waterShore.AddTriangle(e1.v5, e2.v5, v3);
+            //waterShore.AddTriangle(e1.v5, e2.v5, e1.v5 + HexMetrics.GetWaterBridge(direction.Next()));
+            waterShore.AddTriangleUV(new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, nextNeighbor.IsUnderwater ? 0f : 1f));
         }
     }
 

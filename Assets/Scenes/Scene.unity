@@ -271,7 +271,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 2142000451}
-        m_MethodName: SetApplyElevation
+        m_MethodName: SetApplyWaterLevel
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -7262,7 +7262,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Elevation
+  m_Text: Water
 --- !u!222 &2145005450
 CanvasRenderer:
   m_ObjectHideFlags: 0
