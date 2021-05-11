@@ -54,7 +54,7 @@ public static class HexMetrics {
     public static Texture2D noiseSource;
 
     ///噪声影响六边形细胞的强度
-    public const float cellPerturbStrength = 0f;//4f;
+    public const float cellPerturbStrength = 4f;
 
     /// 噪声缩放，主要是避免破坏单个细胞的连续性
     public const float noiseScale = 0.003f;
@@ -78,6 +78,21 @@ public static class HexMetrics {
     public const float waterFactor = 0.6f;
 
     public const float waterBlendFactor = 1f - waterFactor;
+
+    public const int hashGridSize = 256;
+    static float[] hasGrid;
+
+    public static void InitializeHashGrid(int seed)
+    {
+        hasGrid = new float[hashGridSize * hashGridSize];
+        Random.State currentState = Random.state;
+        Random.InitState(seed);
+        for(int i = 0;i<hasGrid.Length;i++)
+        {
+            hasGrid[i] = Random.value;
+        }
+        Random.state = currentState;
+    }
 
 	static Vector3[] corners = {
 		new Vector3(0f, 0f, outerRadius),

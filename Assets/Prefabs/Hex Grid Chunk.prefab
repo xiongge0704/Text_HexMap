@@ -470,6 +470,51 @@ MonoBehaviour:
   useColors: 0
   useUVCoordinates: 1
   useUV2Coordinates: 1
+--- !u!1 &6433871201469560445
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7562717315944881786}
+  - component: {fileID: 7337590943677110351}
+  m_Layer: 0
+  m_Name: Feature
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7562717315944881786
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6433871201469560445}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 9128037548963914028}
+  m_RootOrder: 7
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7337590943677110351
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6433871201469560445}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a20fd09cf7e36d74aa4b39b7ec8e523d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  featurePrefab: {fileID: 7574546807452897715, guid: d6a27071f1cdf0d41a76419e3013c2b2,
+    type: 3}
 --- !u!1 &7218258276061342109
 GameObject:
   m_ObjectHideFlags: 0
@@ -505,6 +550,7 @@ Transform:
   - {fileID: 2795675990699151250}
   - {fileID: 4137453452895726819}
   - {fileID: 7679183347976667104}
+  - {fileID: 7562717315944881786}
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -526,6 +572,7 @@ MonoBehaviour:
   water: {fileID: 6990158155043387046}
   waterShore: {fileID: 5265116151386022416}
   estuaries: {fileID: 7002245035646877401}
+  features: {fileID: 7337590943677110351}
 --- !u!1 &8516233031763650911
 GameObject:
   m_ObjectHideFlags: 0
