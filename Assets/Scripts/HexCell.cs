@@ -483,4 +483,22 @@ public class HexCell : MonoBehaviour {
             RemoveIncomingRiver();
         }
     }
+
+    int urbanLevel;
+
+    public int UrbanLevel
+    {
+        get
+        {
+            return urbanLevel;
+        }
+        set
+        {
+            if(urbanLevel != value)
+            {
+                urbanLevel = value;
+                RefreshSelfOnly();
+            }
+        }
+    }
 }
